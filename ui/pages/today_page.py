@@ -1,11 +1,14 @@
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout
 
-class Today_Page(QWidget):
+class TodayPage(QWidget):
     def __init__(self):
         super().__init__()
         self.ui()
 
     
     def ui(self):
-        self.setStyleSheet("background-color: rgb(200,200,200)")
-        
+        label = QLabel("today-page")
+        layout = QVBoxLayout(self)
+        layout.addWidget(label)
+
+        self.setStyleSheet("background-color: rgb(100,100,0)")
