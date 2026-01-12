@@ -39,7 +39,7 @@ class TaskCard(QFrame):
         priority = QLabel(f"Priority: {self.task.priority}")
         priority.setObjectName("Priority")
 
-        self.meta = QLabel(f"{self.task.progress()}%")
+        self.meta = QLabel(f"{self.task.progress}%")
         self.meta.setObjectName("Meta")
 
         mid.addWidget(self.title_label)
@@ -97,6 +97,6 @@ class TaskCard(QFrame):
 
     def update_view(self):
         self.title_label.setText(self.task.title)
-        self.meta.setText(f"{self.task.progress()}%   •   Priority {self.task.priority}")
+        self.meta.setText(f"{self.task.progress}%   •   Priority {self.task.priority}")
 
 

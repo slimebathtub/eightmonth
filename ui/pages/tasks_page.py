@@ -1,7 +1,8 @@
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QVBoxLayout, QPushButton, QCheckBox
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QVBoxLayout, QPushButton, QCheckBox, QInputDialog
 from ui.components.taskcard import TaskCard
 from core.module.Task import Task
 from data.task_repo import TaskRepository
+
 
 
 class TasksPage(QWidget):
@@ -127,7 +128,7 @@ class TasksPage(QWidget):
         else:
             self.date_info.setText("")
 
-        self.detail_meta.setText(f"Progress: {task.progress()}%   |   Priority: {task.priority}")
+        self.detail_meta.setText(f"Progress: {task.progress}%   |   Priority: {task.priority}")
 
         # milestones list
         self._clear_milestones_ui()
@@ -155,7 +156,7 @@ class TasksPage(QWidget):
                 latest = self.repo.get_task(tid)
                 if latest:
                     self.detail_meta.setText(
-                        f"Progress: {latest.progress()}%   |   Priority: {latest.priority}"
+                        f"Progress: {latest.progress}%   |   Priority: {latest.priority}"
                     )
                     card = self._task_cards.get(tid)
                     if card:
@@ -174,4 +175,30 @@ class TasksPage(QWidget):
             self.milestone_list_layout.addWidget(row)
 
     def _on_add_task(self):
-        print("Add task clicked")
+        title, ok = QInputDialog.getText(self, "New Task", "Task title:")
+        if not ok:
+            return
+
+        title = title.strip()
+        if not title:
+            return
+
+        # 用你目前的 Task dataclass/模型建一個 task
+        # 下面欄位都給安全預設值，避免你 Task constructor 要求缺欄位
+        new_task = Task(
+            title=title,
+            priority=3,
+            progress_mode="auto",
+            progress_manual=0,
+            start_date=None,
+            due_date=None,
+            milestones=[],
+        )
+
+        # 寫入 DB
+        self.repo.create_task(new_task)
+
+        # UI refresh + 自動選中剛新增的 task
+        self._selected_task_id = new_task.id
+        self.reload_tasks()
+

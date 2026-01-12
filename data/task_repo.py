@@ -178,7 +178,7 @@ class TaskRepository:
     #---------read info for UI---------------
     def get_task(self, task_id: str):
         conn = get_conn()
-        tr = conn.execute("SELECT * FROM tasks WHERE id=?", (task_id),).fetchone()
+        tr = conn.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
         if tr is None:
             conn.close()
             return None
