@@ -1,63 +1,33 @@
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QVBoxLayout, QPushButton, QCheckBox
 from ui.components.taskcard import TaskCard
-from core.module.Task import Task, Milestone
-
-task1 = Task({
-    "title": "Build To-Do App",
-    "priority": 2,
-    "milestones": [
-        Milestone("UI Draft", True, "", "2024-01-05"),
-        Milestone("Backend Logic", True, "", "2024-01-10"),
-        Milestone("Sidebar", True, "", "2024-01-15"),
-        Milestone("Tasks Page", False, "", "2024-01-20"),
-        Milestone("Polish", False, "", "2024-01-31"),
-    ],
-    "start_date": "2024-01-01",
-    "due_date": "2024-01-31",
-    "progress_mode": "auto",
-})
-
-task2 = Task({
-    "title": "Write Blog Post",
-    "priority": 3,
-    "milestones": [
-        Milestone("Research", True,"",  "2024-02-03"),
-        Milestone("Draft", False,"",  "2024-02-05"),
-        Milestone("Edit", False, "", "2024-02-07"),
-        Milestone("Publish", False, "", "2024-02-10"),
-    ],
-    "progress_mode": "manual",
-    "start_date": "2024-02-01",
-    "due_date": "2024-02-10",
-    "progress_manual": 19,
-})
-
+from core.module.Task import Task
+from data.task_repo import TaskRepository
 
 
 class TasksPage(QWidget):
     def __init__(self):
         super().__init__()
-        self._tasks = [task1, task2]
-        self._task_cards = {}
+        self.repo = TaskRepository()
+        self._task_cards: dict[str, TaskCard] = {}
+        self._selected_task_id: str | None = None
+        self._tasks: list[Task] = []
+
         self.ui()
+        self.reload_tasks()
 
-    
     def ui(self):
-        # left - right layout
-        list_detail_layout = QHBoxLayout(self)
-        list_detail_layout.setContentsMargins(16, 16, 16, 16)
-        list_detail_layout.setSpacing(14)
-
+        # root layout
+        self.list_detail_layout = QHBoxLayout(self)
+        self.list_detail_layout.setContentsMargins(16, 16, 16, 16)
+        self.list_detail_layout.setSpacing(14)
 
         # ---- Left: List Side ----
         list_side = QWidget()
+        self.list_side_layout = QVBoxLayout(list_side)
+        self.list_side_layout.setContentsMargins(12, 12, 12, 12)
+        self.list_side_layout.setSpacing(10)
 
-        list_side_layout = QVBoxLayout(list_side)
-        list_side_layout.setContentsMargins(12, 12, 12, 12)
-        list_side_layout.setSpacing(10)
-
-
-        # ----- Left: Header Row ----
+        # Header Row
         header_row = QHBoxLayout()
         title = QLabel("Tasks")
         title.setStyleSheet("font-size: 22px; font-weight: 700;")
@@ -68,56 +38,86 @@ class TasksPage(QWidget):
         btn_add.clicked.connect(self._on_add_task)
         header_row.addWidget(btn_add)
 
-        list_side_layout.addLayout(header_row)
+        self.list_side_layout.addLayout(header_row)
 
-        for t in self._tasks:
-            card = TaskCard(t)
-            card.clicked.connect(self._show_detail)
-            list_side_layout.addWidget(card)
-        
-            self._task_cards[id(t)] = card
-        list_side_layout.addStretch(1)
-        
+        # Cards container (rendered by reload_tasks)
+        self.cards_container = QWidget()
+        self.cards_layout = QVBoxLayout(self.cards_container)
+        self.cards_layout.setContentsMargins(0, 0, 0, 0)
+        self.cards_layout.setSpacing(10)
 
-        # ----- Right Tasks detail ---
+        self.list_side_layout.addWidget(self.cards_container)
+        self.list_side_layout.addStretch(1)
+
+        # ---- Right: Task detail ----
         detail = QWidget()
         detail.setStyleSheet("background-color: rgb(100,100,200)")
         detail_layout = QVBoxLayout(detail)
-        
         detail_layout.setContentsMargins(12, 12, 12, 12)
         detail_layout.setSpacing(8)
-        self.detail_meta = QLabel("")
+
         self.detail_title = QLabel("Select a task")
-        self.date_info = QLabel("")
         self.detail_title.setStyleSheet("font-size: 20px; font-weight: 700;")
+        self.date_info = QLabel("")
+        self.detail_meta = QLabel("")
 
         self.milestone_list = QWidget()
         self.milestone_list_layout = QVBoxLayout(self.milestone_list)
         self.milestone_list_layout.setContentsMargins(0, 0, 0, 0)
         self.milestone_list_layout.setSpacing(6)
-        
 
         detail_layout.addWidget(self.detail_title)
         detail_layout.addWidget(self.date_info)
         detail_layout.addWidget(self.detail_meta)
         detail_layout.addWidget(self.milestone_list)
-
-
         detail_layout.addSpacing(12)
 
+        # add to root
+        self.list_detail_layout.addWidget(list_side)
+        self.list_detail_layout.addWidget(detail)
 
-        # --- add to root ---
-        list_detail_layout.addWidget(list_side)
-        list_detail_layout.addWidget(detail)
-
-        list_detail_layout.setStretch(0, 6)
-        list_detail_layout.setStretch(1, 4)
-        self.setLayout(list_detail_layout)
+        self.list_detail_layout.setStretch(0, 6)
+        self.list_detail_layout.setStretch(1, 4)
 
         self.setStyleSheet("background-color: rgb(100,200, 100)")
 
+    def reload_tasks(self):
+        # clear cards
+        while self.cards_layout.count():
+            item = self.cards_layout.takeAt(0)
+            w = item.widget()
+            if w:
+                w.deleteLater()
+
+        self._task_cards.clear()
+        self._tasks = self.repo.list_tasks_with_milestones()
+
+        for t in self._tasks:
+            card = TaskCard(t)
+            card.clicked.connect(self._show_detail)
+            self.cards_layout.addWidget(card)
+            self._task_cards[t.id] = card
+
+        self.cards_layout.addStretch(1)
+
+        # if a task is selected, refresh its detail with latest data
+        if self._selected_task_id:
+            latest = self.repo.get_task(self._selected_task_id)
+            if latest:
+                self._show_detail(latest)
+
+    def _clear_milestones_ui(self):
+        for i in reversed(range(self.milestone_list_layout.count())):
+            item = self.milestone_list_layout.takeAt(i)
+            w = item.widget()
+            if w:
+                w.deleteLater()
+
     def _show_detail(self, task: Task):
-        # 1) update title / meta info
+        self._selected_task_id = task.id
+        task = self.repo.get_task(task.id) or task
+
+        # title / date / meta
         self.detail_title.setText(task.title)
 
         start_date = getattr(task, "start_date", "")
@@ -129,14 +129,9 @@ class TasksPage(QWidget):
 
         self.detail_meta.setText(f"Progress: {task.progress()}%   |   Priority: {task.priority}")
 
-        # 2) delete the old milestone UI
-        for i in reversed(range(self.milestone_list_layout.count())):
-            item = self.milestone_list_layout.takeAt(i)
-            widget = item.widget()
-            if widget:
-                widget.deleteLater()
+        # milestones list
+        self._clear_milestones_ui()
 
-        # 3) create a new milestone checklist
         for m in task.milestones:
             row = QWidget()
             row_layout = QHBoxLayout(row)
@@ -144,28 +139,31 @@ class TasksPage(QWidget):
             row_layout.setSpacing(8)
 
             cb = QCheckBox(m.title)
-            cb.setChecked(m.done)
+            cb.blockSignals(True)
+            cb.setChecked(bool(m.done))
+            cb.blockSignals(False)
 
-            # 取 milestone 的 due_date（如果 Milestone 還沒有這個屬性，就顯示 —）
             m_due = getattr(m, "due_date", None)
             due_text = f"Due: {m_due}" if m_due else "Due: —"
             due_label = QLabel(due_text)
             due_label.setStyleSheet("color: rgba(255,255,255,0.65); font-size: 12px;")
 
-            # ✅ 勾選時同步更新資料 + 進度文字（不然 UI 不會跟著變）
-            def on_toggle(checked, milestone=m, current_task=task):
-                milestone.done = checked
+            def on_toggle(checked, mid=m.id, tid=task.id):
+                # 只更新單一 milestone，不要 replace 全部
+                self.repo.set_milestone_done(mid, checked)
 
-                if getattr(current_task, "progress_mode", "auto") == "manual":
-                    current_task.progress_mode = "auto"
+                latest = self.repo.get_task(tid)
+                if latest:
+                    self.detail_meta.setText(
+                        f"Progress: {latest.progress()}%   |   Priority: {latest.priority}"
+                    )
+                    card = self._task_cards.get(tid)
+                    if card:
+                        card.task = latest
+                        card.update_view()
 
-                self.detail_meta.setText(
-                    f"Progress: {current_task.progress()}%   |   Priority: {current_task.priority}"
-                )
-
-                card = self._task_cards.get(id(current_task))
-                if card:
-                    card.update_view()
+                # 你想保險就整頁重載（穩但會閃一下）
+                self.reload_tasks()
 
             cb.toggled.connect(on_toggle)
 
@@ -174,7 +172,6 @@ class TasksPage(QWidget):
             row_layout.addWidget(due_label)
 
             self.milestone_list_layout.addWidget(row)
-
 
     def _on_add_task(self):
         print("Add task clicked")

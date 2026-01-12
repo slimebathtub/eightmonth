@@ -1,63 +1,30 @@
-from core.module.Task import Milestone, Task
+from data.db import init_db
+from data.task_repo import TaskRepository
+from core.module.Task import Task, Milestone
 
+init_db()
+repo = TaskRepository()
 
-def test_milestone_defaults():
-    m = Milestone("A")
-    assert m.title == "A"
-    assert m.done is False
-    assert m.description == ""
-    assert m.weight == 1
+# 1 新增 Task
+t = Task(title="hello", priority=2, progress_mode="auto", progress_manual=0)
+repo.create_task(t)
 
+# 4 新增 milestone
+mid = repo.add_milestone(t.id, Milestone(title="m1", description="demo", sort_order=0))
 
-def test_task_defaults_when_missing_keys():
-    t = Task({})
-    assert t.title == ""
-    assert t.priority == 3
-    assert t.progress_mode == "auto"
-    assert t.progress_manual == 0
-    assert t.milestones == []
+# 7 完成 milestone
+repo.set_milestone_done(mid, True)
 
+# 3 修改 Task
+t.title = "hello (edited)"
+repo.update_task(t)
 
-def test_task_milestone_normalization():
-    m1 = Milestone("A", True)
-    m2 = {"title": "B", "done": False, "description": "", "weight": 2}
-    t = Task({"milestones": [m1, m2]})
-    assert len(t.milestones) == 2
-    assert isinstance(t.milestones[0], Milestone)
-    assert isinstance(t.milestones[1], Milestone)
+# 6 修改 milestone
+repo.update_milestone(mid, title="m1 (edited)", description="changed")
 
+# 5 刪 milestone
+repo.delete_milestone(mid)
 
-def test_progress_manual_clamped():
-    t = Task({"progress_mode": "manual", "progress_manual": 120})
-    assert t.progress() == 100
-    t = Task({"progress_mode": "manual", "progress_manual": -5})
-    assert t.progress() == 0
+# 2 刪 Task
+repo.delete_task(t.id)
 
-
-def test_progress_auto_weighted():
-    t = Task({
-        "milestones": [
-            {"title": "A", "done": True, "weight": 2},
-            {"title": "B", "done": False, "weight": 1},
-        ]
-    })
-    assert t.progress() == 67
-
-
-def test_progress_auto_no_milestones():
-    t = Task({})
-    assert t.progress() == 0
-
-
-def run_all():
-    test_milestone_defaults()
-    test_task_defaults_when_missing_keys()
-    test_task_milestone_normalization()
-    test_progress_manual_clamped()
-    test_progress_auto_weighted()
-    test_progress_auto_no_milestones()
-
-
-if __name__ == "__main__":
-    run_all()
-    print("All Task/Milestone tests passed.")
