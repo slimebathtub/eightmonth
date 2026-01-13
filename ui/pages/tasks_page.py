@@ -1,7 +1,16 @@
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QVBoxLayout, QPushButton, QCheckBox, QInputDialog
+from PySide6.QtWidgets import (
+    QScrollArea, QWidget, QHBoxLayout, QLabel, QVBoxLayout,
+    QPushButton, QCheckBox, QInputDialog, QDialog
+)
+from PySide6.QtCore import Qt
 from ui.components.taskcard import TaskCard
 from core.module.Task import Task
 from data.task_repo import TaskRepository
+from ui.components.task_dialog import TaskDialog
+
+from ui.components.milestone_list import MilestoneListWidget
+from ui.components.milestone_dialog import MilestoneDialog, DELETE_CODE
+from core.module.Task import Milestone
 
 
 
@@ -41,14 +50,20 @@ class TasksPage(QWidget):
 
         self.list_side_layout.addLayout(header_row)
 
-        # Cards container (rendered by reload_tasks)
+        # ------ Cards container (rendered by reload_tasks)-----
         self.cards_container = QWidget()
         self.cards_layout = QVBoxLayout(self.cards_container)
         self.cards_layout.setContentsMargins(0, 0, 0, 0)
         self.cards_layout.setSpacing(10)
 
-        self.list_side_layout.addWidget(self.cards_container)
-        self.list_side_layout.addStretch(1)
+        # ------- Scroll Area for cards -----
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setFrameShape(QScrollArea.NoFrame)
+        self.scroll.setWidget(self.cards_container)
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+        self.list_side_layout.addWidget(self.scroll)
 
         # ---- Right: Task detail ----
         detail = QWidget()
@@ -67,13 +82,12 @@ class TasksPage(QWidget):
         self.milestone_list_layout.setContentsMargins(0, 0, 0, 0)
         self.milestone_list_layout.setSpacing(6)
 
+        # add to root
         detail_layout.addWidget(self.detail_title)
         detail_layout.addWidget(self.date_info)
         detail_layout.addWidget(self.detail_meta)
         detail_layout.addWidget(self.milestone_list)
-        detail_layout.addSpacing(12)
 
-        # add to root
         self.list_detail_layout.addWidget(list_side)
         self.list_detail_layout.addWidget(detail)
 
@@ -96,6 +110,7 @@ class TasksPage(QWidget):
         for t in self._tasks:
             card = TaskCard(t)
             card.clicked.connect(self._show_detail)
+            card.set_selected(t.id == self._selected_task_id)
             self.cards_layout.addWidget(card)
             self._task_cards[t.id] = card
 
@@ -107,15 +122,12 @@ class TasksPage(QWidget):
             if latest:
                 self._show_detail(latest)
 
-    def _clear_milestones_ui(self):
-        for i in reversed(range(self.milestone_list_layout.count())):
-            item = self.milestone_list_layout.takeAt(i)
-            w = item.widget()
-            if w:
-                w.deleteLater()
 
     def _show_detail(self, task: Task):
         self._selected_task_id = task.id
+        for tid, card in self._task_cards.items():
+            card.set_selected(tid == self._selected_task_id)
+
         task = self.repo.get_task(task.id) or task
 
         # title / date / meta
@@ -150,7 +162,6 @@ class TasksPage(QWidget):
             due_label.setStyleSheet("color: rgba(255,255,255,0.65); font-size: 12px;")
 
             def on_toggle(checked, mid=m.id, tid=task.id):
-                # 只更新單一 milestone，不要 replace 全部
                 self.repo.set_milestone_done(mid, checked)
 
                 latest = self.repo.get_task(tid)
@@ -163,7 +174,6 @@ class TasksPage(QWidget):
                         card.task = latest
                         card.update_view()
 
-                # 你想保險就整頁重載（穩但會閃一下）
                 self.reload_tasks()
 
             cb.toggled.connect(on_toggle)
@@ -174,31 +184,40 @@ class TasksPage(QWidget):
 
             self.milestone_list_layout.addWidget(row)
 
+
+
     def _on_add_task(self):
-        title, ok = QInputDialog.getText(self, "New Task", "Task title:")
-        if not ok:
+        dlg = TaskDialog(self)
+        if dlg.exec() != QDialog.Accepted:
             return
 
-        title = title.strip()
-        if not title:
+        t = dlg.result_task()
+        if not t:
             return
 
-        # 用你目前的 Task dataclass/模型建一個 task
-        # 下面欄位都給安全預設值，避免你 Task constructor 要求缺欄位
-        new_task = Task(
-            title=title,
-            priority=3,
-            progress_mode="auto",
-            progress_manual=0,
-            start_date=None,
-            due_date=None,
-            milestones=[],
-        )
+        created_id = self.repo.create_task(t)  # 如果 repo 沒回傳，就會是 None
+        
+        task_id = created_id or getattr(t, "id", None)
+        for m in t.milestones:
+            self.repo.add_milestone(task_id, m)
 
-        # 寫入 DB
-        self.repo.create_task(new_task)
 
-        # UI refresh + 自動選中剛新增的 task
-        self._selected_task_id = new_task.id
+        # auto choose
+        self._selected_task_id = task_id
         self.reload_tasks()
+
+        # show up in the right
+        if task_id:
+            latest = self.repo.get_task(task_id)
+            if latest:
+                self._show_detail(latest)
+
+    def _clear_milestones_ui(self):
+        for i in reversed(range(self.milestone_list_layout.count())):
+            item = self.milestone_list_layout.takeAt(i)
+            w = item.widget()
+            if w:
+                w.deleteLater()
+
+
 

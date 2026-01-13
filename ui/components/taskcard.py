@@ -76,6 +76,10 @@ class TaskCard(QFrame):
                 font-size: 22px;
                 color: rgba(255,255,255,0.35);
             }
+            QFrame#TaskCard[selected="true"] {
+                border: 1px solid rgba(255,255,255,0.45);
+                background: rgba(255,255,255,0.10);
+            }
         """)
 
     def _milestone_details(self) -> str:
@@ -98,5 +102,13 @@ class TaskCard(QFrame):
     def update_view(self):
         self.title_label.setText(self.task.title)
         self.meta.setText(f"{self.task.progress}%   •   Priority {self.task.priority}")
+
+    def set_selected(self, selected: bool):
+        self.setProperty("selected", selected)
+
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self.update()
+
 
 

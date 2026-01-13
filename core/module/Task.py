@@ -2,20 +2,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal, Optional
 import uuid
+from core.module.milestone import Milestone
 
 ProgressMode = Literal["auto", "manual"]
 
 def new_id() -> str:
     return str(uuid.uuid4())
 
-@dataclass
-class Milestone:
-    title: str
-    done: bool = False
-    description: str = ""
-    due_date: Optional[str] = None
-    sort_order: int = 0
-    id: Optional[int] = None   # 對應 DB AUTOINCREMENT，可為 None
+   # 對應 DB AUTOINCREMENT，可為 None
 
 @dataclass
 class Task:
