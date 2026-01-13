@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QFrame, QSizePolicy, QHBoxLayout
-from PySide6.QtCore import Signal, Qt
+from PySide6.QtCore import Signal, Qt, QTimer
 from core.module.Task import Task
 
 
@@ -11,7 +11,9 @@ class TaskCard(QFrame):
         super().__init__()
         self.task = task
         self.ui()
-    
+        self._click_timer = QTimer(self)
+        self._click_timer.setSingleShot(True)
+        self._click_timer.timeout.connect(self._emit_single_click)
 
     def ui(self):
         self.setObjectName("TaskCard")
@@ -94,10 +96,13 @@ class TaskCard(QFrame):
             lines.append(f"... +{len(self.task.milestones) - 3} more")
         return "\n".join(lines)
 
+    def _emit_single_click(self):
+        self.clicked.emit(self.task)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
-            self.clicked.emit(self.task)
+            # 單擊：延遲一下，給雙擊機會取消
+            self._click_timer.start(220)
         super().mousePressEvent(event)
 
     def update_view(self):
@@ -113,6 +118,22 @@ class TaskCard(QFrame):
 
     def mouseDoubleClickEvent(self, event):
         if event.button() == Qt.LeftButton:
+            # 雙擊：取消單擊，直接進編輯
+            if self._click_timer.isActive():
+                self._click_timer.stop()
             self.double_clicked.emit(self.task)
+            event.accept()
+            return
         super().mouseDoubleClickEvent(event)
+    
+    def _stop_click_timer(self):
+        if hasattr(self, "_click_timer") and self._click_timer.isActive():
+            self._click_timer.stop()
 
+    def hideEvent(self, event):
+        self._stop_click_timer()
+        super().hideEvent(event)
+
+    def closeEvent(self, event):
+        self._stop_click_timer()
+        super().closeEvent(event)

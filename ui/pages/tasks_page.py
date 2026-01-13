@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (
     QScrollArea, QWidget, QHBoxLayout, QLabel, QVBoxLayout,
-    QPushButton, QCheckBox, QInputDialog, QDialog
+    QPushButton, QCheckBox, QInputDialog, QDialog, QToolButton
 )
 from PySide6.QtCore import Qt
 from ui.components.taskcard import TaskCard
@@ -12,15 +12,18 @@ from ui.components.milestone_list import MilestoneListWidget
 from ui.components.milestone_dialog import MilestoneDialog, DELETE_CODE
 from core.module.Task import Milestone
 
-
+import time
 
 class TasksPage(QWidget):
     def __init__(self):
         super().__init__()
+        self._sort_mode = "urgency"
         self.repo = TaskRepository()
         self._task_cards: dict[str, TaskCard] = {}
         self._selected_task_id: str | None = None
         self._tasks: list[Task] = []
+        self._task_dialog_open = False
+        self._block_card_clicks_until = 0.0
 
         self.ui()
         self.reload_tasks()
@@ -42,6 +45,16 @@ class TasksPage(QWidget):
         title = QLabel("Tasks")
         title.setStyleSheet("font-size: 22px; font-weight: 700;")
         header_row.addWidget(title)
+
+        # ---- sort switch (新增) ----
+        self.sort_btn = QToolButton()
+        self.sort_btn.setCheckable(True)
+        self.sort_btn.setChecked(False)  # False=urgency
+        self._update_sort_btn_text()
+        self.sort_btn.clicked.connect(self._on_sort_btn_clicked)
+
+        header_row.addWidget(self.sort_btn)
+
 
         btn_add = QPushButton("+ Task")
         btn_add.setFixedHeight(32)
@@ -96,35 +109,85 @@ class TasksPage(QWidget):
 
         self.setStyleSheet("background-color: rgb(100,200, 100)")
 
-    def reload_tasks(self):
-        # clear cards
-        while self.cards_layout.count():
-            item = self.cards_layout.takeAt(0)
+    def _update_sort_btn_text(self):
+        self.sort_btn.setText("A→Z" if self.sort_btn.isChecked() else "Urgency")
+
+    def _on_sort_btn_clicked(self):
+        self._sort_mode = "alpha" if self.sort_btn.isChecked() else "urgency"
+        self._update_sort_btn_text()
+        self.reload_tasks(keep_scroll=True, keep_selection=True)
+
+
+    def reload_tasks(self, keep_scroll: bool = True, keep_selection: bool = True):
+        from PySide6.QtCore import QSignalBlocker, QTimer
+
+        # ---- preserve scroll position ----
+        sb = self.scroll.verticalScrollBar()
+        old_scroll = sb.value() if keep_scroll else 0
+
+        # ---- preserve selection ----
+        selected_id = self._selected_task_id if keep_selection else None
+
+        # 0) rebuild 期間擋一下 click（避免你之前那種閃窗連發）
+        self._block_card_clicks_until = time.time() + 0.35
+
+        # 1) clear cards
+        for i in reversed(range(self.cards_layout.count())):
+            item = self.cards_layout.takeAt(i)
             w = item.widget()
             if w:
+                w.setEnabled(False)
+                w.setParent(None)
                 w.deleteLater()
 
         self._task_cards.clear()
+
+        # 2) load tasks
         self._tasks = self.repo.list_tasks_with_milestones()
 
-        for t in self._tasks:
+        # 2.5) sort tasks
+        tasks = list(self._tasks)
+        if self._sort_mode == "alpha":
+            tasks.sort(key=lambda t: (t.title or "").strip().lower())
+        else:
+            # urgency: priority 越小越緊急
+            tasks.sort(key=lambda t: (getattr(t, "priority", 999), (t.title or "").strip().lower()))
+
+        # 3) rebuild cards
+        for t in tasks:
             card = TaskCard(t)
+
+            card.clicked.connect(self._show_detail, Qt.UniqueConnection)
+            card.double_clicked.connect(self._on_edit_task, Qt.UniqueConnection)
+
+            # 你之前如果有加 UniqueConnection 更好，但先保持簡單
             card.clicked.connect(self._show_detail)
             card.double_clicked.connect(self._on_edit_task)
-            card.set_selected(t.id == self._selected_task_id)
+
+            card.set_selected(t.id == selected_id)
             self.cards_layout.addWidget(card)
             self._task_cards[t.id] = card
 
         self.cards_layout.addStretch(1)
 
-        # if a task is selected, refresh its detail with latest data
-        if self._selected_task_id:
-            latest = self.repo.get_task(self._selected_task_id)
+        # 4) restore selection + detail
+        self._selected_task_id = selected_id
+        if selected_id:
+            latest = self.repo.get_task(selected_id)
             if latest:
+                blocker = QSignalBlocker(self)
                 self._show_detail(latest)
+                del blocker
+
+        # 5) restore scroll (重建後下一個 event loop 再設，才不會被 layout 立刻改回去)
+        if keep_scroll:
+            QTimer.singleShot(0, lambda: sb.setValue(old_scroll))
 
 
     def _show_detail(self, task: Task):
+        if time.time() < self._block_card_clicks_until:
+            return
+        sender = self.sender()
         self._selected_task_id = task.id
         for tid, card in self._task_cards.items():
             card.set_selected(tid == self._selected_task_id)
@@ -187,7 +250,6 @@ class TasksPage(QWidget):
                     if card:
                         card.task = latest
                         card.update_view()
-                self.reload_tasks()
 
             cb.toggled.connect(on_toggle)
 
@@ -215,7 +277,6 @@ class TasksPage(QWidget):
         for m in t.milestones:
             self.repo.add_milestone(task_id, m)
 
-
         # auto choose
         self._selected_task_id = task_id
         self.reload_tasks()
@@ -234,41 +295,47 @@ class TasksPage(QWidget):
                 w.deleteLater()
 
     def _on_edit_task(self, task: Task):
-    # 用最新資料（包含 milestones）
-        latest = self.repo.get_task(task.id) or task
+        if time.time() < self._block_card_clicks_until:
+            return
+        sender = self.sender()
+        if self._task_dialog_open:
+            return
+        self._task_dialog_open = True
+        try:
+            latest = self.repo.get_task(task.id) or task
 
-        dlg = TaskDialog(self, latest)
-        rc = dlg.exec()
+            dlg = TaskDialog(self, latest)
+            rc = dlg.exec()
 
-        # Delete（由 TaskDialog 回傳 DELETE_CODE）
-        if rc == DELETE_CODE:
-            self.repo.delete_task(latest.id)
-            self._selected_task_id = None
+            if rc == DELETE_CODE:
+                self.repo.delete_task(latest.id)
+                self._selected_task_id = None
+                self.reload_tasks()
+                self.detail_title.setText("Select a task")
+                self.date_info.setText("")
+                self.detail_meta.setText("")
+                self._clear_milestones_ui()
+                return
+
+            if rc != QDialog.Accepted:
+                return
+
+            updated = dlg.result_task()
+            if not updated:
+                return
+
+            self.repo.update_task(updated)
+            self._sync_milestones(updated)
+
+            self._selected_task_id = updated.id
             self.reload_tasks()
-            self.detail_title.setText("Select a task")
-            self.date_info.setText("")
-            self.detail_meta.setText("")
-            self._clear_milestones_ui()
-            return
+            latest2 = self.repo.get_task(updated.id)
+            if latest2:
+                self._show_detail(latest2)
+        finally:
+            self._task_dialog_open = False
+            self._block_card_clicks_until = time.time() + 0.25
 
-        if rc != QDialog.Accepted:
-            return
-
-        updated = dlg.result_task()
-        if not updated:
-            return
-
-        # ✅ 更新 task 本體
-        self.repo.update_task(updated)
-
-        # ✅ 同步 milestones（新增/更新/刪除/排序）
-        self._sync_milestones(updated)
-
-        self._selected_task_id = updated.id
-        self.reload_tasks()
-        latest2 = self.repo.get_task(updated.id)
-        if latest2:
-            self._show_detail(latest2)
 
 
     def _sync_milestones(self, task: Task):

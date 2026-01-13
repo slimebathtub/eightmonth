@@ -11,6 +11,16 @@ from PySide6.QtWidgets import (
 from core.module.Task import Task, Milestone
 from ui.components.milestone_dialog import MilestoneDialog, DELETE_CODE
 
+class _MilestoneDragList(QListWidget):
+    def __init__(self, on_dropped, parent=None):
+        super().__init__(parent)
+        self._on_dropped = on_dropped
+
+    def dropEvent(self, event):
+        super().dropEvent(event)
+        # drop 完立即同步順序 + 重新編號
+        if callable(self._on_dropped):
+            self._on_dropped()
 
 def qdate_to_iso(d: QDate) -> str:
     return d.toString("yyyy-MM-dd")
@@ -100,7 +110,7 @@ class TaskDialog(QDialog):
         # ---- Milestones area (in dialog) ----
         root.addWidget(QLabel("Milestones"))
 
-        self.ms_list = QListWidget()
+        self.ms_list = _MilestoneDragList(self._after_ms_dropped)
         self.ms_list.setDragDropMode(QListWidget.InternalMove)
         self.ms_list.setDefaultDropAction(Qt.MoveAction)
         self.ms_list.setSelectionMode(QListWidget.SingleSelection)
@@ -112,9 +122,6 @@ class TaskDialog(QDialog):
 
         self.ms_list.itemDoubleClicked.connect(self.on_edit_milestone)
 
-        # ✅ 拖曳排序後立刻同步 sort_order
-        self.ms_list.model().rowsMoved.connect(lambda *args: self._sync_sort_order_from_ui())
-        self.ms_list.model().rowsMoved.connect(lambda *args: self._after_reorder())
 
         # ---- buttons ----
         btn_row = QHBoxLayout()
@@ -140,6 +147,11 @@ class TaskDialog(QDialog):
         self.de_start.setDate(today)
         self.de_due.setDate(today)
 
+    def _after_ms_dropped(self):
+        self._sync_sort_order_from_ui()
+        self._renumber_items()
+
+    
     def _on_progress_mode_changed(self):
         mode = self.cmb_progress_mode.currentData()
         self.sp_manual.setEnabled(mode == "manual")
@@ -246,7 +258,18 @@ class TaskDialog(QDialog):
         m.title = edited.title
         m.description = edited.description
         m.due_date = edited.due_date
-        item.setText(m.title)
+        self._renumber_items()
+
+    def _renumber_items(self):
+        # 只改文字，不動 item / model（避免觸發更多內部事件）
+        for i in range(self.ms_list.count()):
+            it = self.ms_list.item(i)
+            m: Milestone = it.data(Qt.UserRole)
+            it.setText(f"{i+1}. {m.title}")
+
+    def _on_ms_rows_moved(self, *args):
+        self._sync_sort_order_from_ui()
+        self._renumber_items()
 
     # ---------- save ----------
     def on_save(self):
@@ -296,9 +319,5 @@ class TaskDialog(QDialog):
     def on_delete_task(self):
         if QMessageBox.question(self, "Delete", "Delete this task?") == QMessageBox.Yes:
             self.done(DELETE_CODE)
-
-    def _after_reorder(self):
-        self._sync_sort_order_from_ui()
-        self._render_milestones()   # ✅ 重畫一次，序號就會跟著變
 
 
