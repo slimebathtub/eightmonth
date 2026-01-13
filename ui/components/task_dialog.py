@@ -114,6 +114,7 @@ class TaskDialog(QDialog):
 
         # ✅ 拖曳排序後立刻同步 sort_order
         self.ms_list.model().rowsMoved.connect(lambda *args: self._sync_sort_order_from_ui())
+        self.ms_list.model().rowsMoved.connect(lambda *args: self._after_reorder())
 
         # ---- buttons ----
         btn_row = QHBoxLayout()
@@ -122,8 +123,13 @@ class TaskDialog(QDialog):
         self.btn_cancel = QPushButton("Cancel")
         self.btn_save = QPushButton("Save")
         self.btn_save.setDefault(True)
+        
+        if self._original_task is None:
+            self.btn_cancel.clicked.connect(self.reject)
+        else:
+            self.btn_cancel.setText("Delete")
+            self.btn_cancel.clicked.connect(self.on_delete_task)
 
-        self.btn_cancel.clicked.connect(self.reject)
         self.btn_save.clicked.connect(self.on_save)
 
         btn_row.addWidget(self.btn_cancel)
@@ -188,11 +194,12 @@ class TaskDialog(QDialog):
     # ---------- milestones ----------
     def _render_milestones(self):
         self.ms_list.clear()
-        for m in self._milestones:
-            it = QListWidgetItem(m.title)
+        for i, m in enumerate(self._milestones, start=1):
+            it = QListWidgetItem(f"{i}. {m.title}")
             it.setFlags(it.flags() | Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsDragEnabled)
             it.setData(Qt.UserRole, m)
             self.ms_list.addItem(it)
+
 
     def _sync_sort_order_from_ui(self):
         new_list: list[Milestone] = []
@@ -285,3 +292,13 @@ class TaskDialog(QDialog):
 
     def result_task(self) -> Optional[Task]:
         return self._result_task
+    
+    def on_delete_task(self):
+        if QMessageBox.question(self, "Delete", "Delete this task?") == QMessageBox.Yes:
+            self.done(DELETE_CODE)
+
+    def _after_reorder(self):
+        self._sync_sort_order_from_ui()
+        self._render_milestones()   # ✅ 重畫一次，序號就會跟著變
+
+

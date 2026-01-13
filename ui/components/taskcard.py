@@ -5,6 +5,7 @@ from core.module.Task import Task
 
 class TaskCard(QFrame):
     clicked = Signal(object)
+    double_clicked = Signal(object)
 
     def __init__(self, task: Task):
         super().__init__()
@@ -110,5 +111,8 @@ class TaskCard(QFrame):
         self.style().polish(self)
         self.update()
 
-
+    def mouseDoubleClickEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.double_clicked.emit(self.task)
+        super().mouseDoubleClickEvent(event)
 

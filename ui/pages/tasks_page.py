@@ -110,6 +110,7 @@ class TasksPage(QWidget):
         for t in self._tasks:
             card = TaskCard(t)
             card.clicked.connect(self._show_detail)
+            card.double_clicked.connect(self._on_edit_task)
             card.set_selected(t.id == self._selected_task_id)
             self.cards_layout.addWidget(card)
             self._task_cards[t.id] = card
@@ -151,11 +152,27 @@ class TasksPage(QWidget):
             row_layout.setContentsMargins(0, 0, 0, 0)
             row_layout.setSpacing(8)
 
+            # ---- Left block (title + description) ----
+            left = QWidget()
+            left_layout = QVBoxLayout(left)
+            left_layout.setContentsMargins(0, 0, 0, 0)
+            left_layout.setSpacing(2)
+
             cb = QCheckBox(m.title)
             cb.blockSignals(True)
             cb.setChecked(bool(m.done))
             cb.blockSignals(False)
 
+            desc = (m.description or "").strip()
+            desc_label = QLabel(desc)
+            desc_label.setWordWrap(True)
+            desc_label.setStyleSheet("color: rgba(255,255,255,0.65); font-size: 12px;")
+            desc_label.setVisible(bool(desc))   # ✅ 沒描述就不顯示
+
+            left_layout.addWidget(cb)
+            left_layout.addWidget(desc_label)
+
+            # ---- Right block (due) ----
             m_due = getattr(m, "due_date", None)
             due_text = f"Due: {m_due}" if m_due else "Due: —"
             due_label = QLabel(due_text)
@@ -163,26 +180,23 @@ class TasksPage(QWidget):
 
             def on_toggle(checked, mid=m.id, tid=task.id):
                 self.repo.set_milestone_done(mid, checked)
-
                 latest = self.repo.get_task(tid)
                 if latest:
-                    self.detail_meta.setText(
-                        f"Progress: {latest.progress}%   |   Priority: {latest.priority}"
-                    )
+                    self.detail_meta.setText(f"Progress: {latest.progress}%   |   Priority: {latest.priority}")
                     card = self._task_cards.get(tid)
                     if card:
                         card.task = latest
                         card.update_view()
-
                 self.reload_tasks()
 
             cb.toggled.connect(on_toggle)
 
-            row_layout.addWidget(cb)
+            row_layout.addWidget(left, 1)
             row_layout.addStretch(1)
             row_layout.addWidget(due_label)
 
             self.milestone_list_layout.addWidget(row)
+
 
 
 
@@ -218,6 +232,73 @@ class TasksPage(QWidget):
             w = item.widget()
             if w:
                 w.deleteLater()
+
+    def _on_edit_task(self, task: Task):
+    # 用最新資料（包含 milestones）
+        latest = self.repo.get_task(task.id) or task
+
+        dlg = TaskDialog(self, latest)
+        rc = dlg.exec()
+
+        # Delete（由 TaskDialog 回傳 DELETE_CODE）
+        if rc == DELETE_CODE:
+            self.repo.delete_task(latest.id)
+            self._selected_task_id = None
+            self.reload_tasks()
+            self.detail_title.setText("Select a task")
+            self.date_info.setText("")
+            self.detail_meta.setText("")
+            self._clear_milestones_ui()
+            return
+
+        if rc != QDialog.Accepted:
+            return
+
+        updated = dlg.result_task()
+        if not updated:
+            return
+
+        # ✅ 更新 task 本體
+        self.repo.update_task(updated)
+
+        # ✅ 同步 milestones（新增/更新/刪除/排序）
+        self._sync_milestones(updated)
+
+        self._selected_task_id = updated.id
+        self.reload_tasks()
+        latest2 = self.repo.get_task(updated.id)
+        if latest2:
+            self._show_detail(latest2)
+
+
+    def _sync_milestones(self, task: Task):
+        existing = self.repo.get_task(task.id)
+        existing_by_id = {m.id: m for m in (existing.milestones if existing else []) if m.id is not None}
+
+        new_ids = set()
+
+        for idx, m in enumerate(task.milestones):
+            m.sort_order = idx
+
+            if m.id is None:
+                new_id = self.repo.add_milestone(task.id, m)
+                m.id = new_id
+                new_ids.add(new_id)
+            else:
+                new_ids.add(m.id)
+                self.repo.update_milestone(
+                    int(m.id),
+                    title=m.title,
+                    description=m.description,
+                    due_date=m.due_date,
+                    sort_order=m.sort_order,
+                    done=m.done,
+                )
+
+        # delete removed
+        for mid in existing_by_id.keys():
+            if mid not in new_ids:
+                self.repo.delete_milestone(int(mid))
 
 
 
