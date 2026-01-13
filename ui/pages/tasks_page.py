@@ -11,6 +11,7 @@ from ui.components.task_dialog import TaskDialog
 from ui.components.milestone_list import MilestoneListWidget
 from ui.components.milestone_dialog import MilestoneDialog, DELETE_CODE
 from core.module.Task import Milestone
+from PySide6.QtCore import QSignalBlocker, QTimer
 
 import time
 
@@ -23,7 +24,7 @@ class TasksPage(QWidget):
         self._selected_task_id: str | None = None
         self._tasks: list[Task] = []
         self._task_dialog_open = False
-        self._block_card_clicks_until = 0.0
+        # self._block_card_clicks_until = 0.0
 
         self.ui()
         self.reload_tasks()
@@ -109,6 +110,23 @@ class TasksPage(QWidget):
 
         self.setStyleSheet("background-color: rgb(100,200, 100)")
 
+    def _select_and_focus_task(self, task_id: str, scroll_into_view: bool = True):
+        self._selected_task_id = task_id
+
+        # 1) 更新每張卡的 selected 外觀
+        for tid, card in self._task_cards.items():
+            card.set_selected(tid == task_id)
+
+        # 2) 右側 detail 顯示該 task（用最新資料）
+        latest = self.repo.get_task(task_id)
+        if latest:
+            self._show_detail(latest)
+
+        # 3) 左側捲到該卡（等 layout 穩定後再捲）
+        if scroll_into_view and task_id in self._task_cards:
+            card = self._task_cards[task_id]
+            QTimer.singleShot(0, lambda: self.scroll.ensureWidgetVisible(card))
+    
     def _update_sort_btn_text(self):
         self.sort_btn.setText("A→Z" if self.sort_btn.isChecked() else "Urgency")
 
@@ -119,7 +137,7 @@ class TasksPage(QWidget):
 
 
     def reload_tasks(self, keep_scroll: bool = True, keep_selection: bool = True):
-        from PySide6.QtCore import QSignalBlocker, QTimer
+        
 
         # ---- preserve scroll position ----
         sb = self.scroll.verticalScrollBar()
@@ -129,7 +147,7 @@ class TasksPage(QWidget):
         selected_id = self._selected_task_id if keep_selection else None
 
         # 0) rebuild 期間擋一下 click（避免你之前那種閃窗連發）
-        self._block_card_clicks_until = time.time() + 0.35
+        # self._block_card_clicks_until = time.time() + 0.35
 
         # 1) clear cards
         for i in reversed(range(self.cards_layout.count())):
@@ -160,10 +178,6 @@ class TasksPage(QWidget):
             card.clicked.connect(self._show_detail, Qt.UniqueConnection)
             card.double_clicked.connect(self._on_edit_task, Qt.UniqueConnection)
 
-            # 你之前如果有加 UniqueConnection 更好，但先保持簡單
-            card.clicked.connect(self._show_detail)
-            card.double_clicked.connect(self._on_edit_task)
-
             card.set_selected(t.id == selected_id)
             self.cards_layout.addWidget(card)
             self._task_cards[t.id] = card
@@ -185,9 +199,7 @@ class TasksPage(QWidget):
 
 
     def _show_detail(self, task: Task):
-        if time.time() < self._block_card_clicks_until:
-            return
-        sender = self.sender()
+        
         self._selected_task_id = task.id
         for tid, card in self._task_cards.items():
             card.set_selected(tid == self._selected_task_id)
@@ -295,8 +307,8 @@ class TasksPage(QWidget):
                 w.deleteLater()
 
     def _on_edit_task(self, task: Task):
-        if time.time() < self._block_card_clicks_until:
-            return
+        # if time.time() < self._block_card_clicks_until:
+        #    return
         sender = self.sender()
         if self._task_dialog_open:
             return
@@ -327,14 +339,13 @@ class TasksPage(QWidget):
             self.repo.update_task(updated)
             self._sync_milestones(updated)
 
-            self._selected_task_id = updated.id
-            self.reload_tasks()
-            latest2 = self.repo.get_task(updated.id)
-            if latest2:
-                self._show_detail(latest2)
+            edited_id = task.id
+            self._selected_task_id = edited_id
+            self.reload_tasks(keep_scroll=True, keep_selection=True)
+            self._select_and_focus_task(edited_id, scroll_into_view=True)
         finally:
             self._task_dialog_open = False
-            self._block_card_clicks_until = time.time() + 0.25
+            # self._block_card_clicks_until = time.time() + 0.25
 
 
 
