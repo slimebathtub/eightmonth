@@ -3,44 +3,15 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import QDate
 from data.task_repo import TaskRepository
+from data.today_repo import TodayRepository
 from ui.components.relax import RelaxListWidget
-
-
-class TodayMilestoneRow(QFrame):
-    def __init__(self, milestone_title: str, task_title: str, due_text: str):
-        super().__init__()
-        self.setObjectName("TodayMilestoneRow")
-
-        root = QVBoxLayout(self)
-        root.setContentsMargins(12, 10, 12, 10)
-        root.setSpacing(2)
-
-        title = QLabel(milestone_title)
-        title.setStyleSheet("font-size: 15px; font-weight: 600;")
-
-        sub = QLabel(f"from: {task_title}")
-        sub.setStyleSheet("font-size: 12px; color: rgba(255,255,255,0.65);")
-
-        due = QLabel(f"due: {due_text}")
-        due.setStyleSheet("font-size: 12px; color: rgba(255,255,255,0.65);")
-
-        root.addWidget(title)
-        root.addWidget(sub)
-        root.addWidget(due)
-
-        self.setStyleSheet("""
-            QFrame#TodayMilestoneRow {
-                background: rgba(255,255,255,0.04);
-                border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 12px;
-            }
-        """)
-
+from ui.components.today_milestone import TodayMilestoneCard
 
 class TodayPage(QWidget):
     def __init__(self):
         super().__init__()
         self.repo = TaskRepository()
+        self.today_repo = TodayRepository()
         self.ui()
         self.reload_today()
 
@@ -70,15 +41,20 @@ class TodayPage(QWidget):
 
         tasks = self.repo.list_tasks_with_milestones()
         count = 0
+        date_str = self._today_str()
 
         for t in tasks:
             for m in t.milestones:
                 if self._is_due_today(m):
-                    due_text = self._format_due_text(m)
-                    self.list_layout.addWidget(
-                        TodayMilestoneRow(m.title, t.title, due_text)
-                    )
-                    count += 1
+                    mid = int(getattr(m, "id"))  # milestones.id 是 INTEGER
+                    is_done = self.today_repo.get_done(date_str, mid)
+
+                    card = TodayMilestoneCard(m.title, t.title, self._format_due_text(m), is_done)
+
+                    # ✅ 勾選完成/取消完成 → 寫回 today_item
+                    card.done_toggled.connect(lambda checked, _mid=mid: self._on_milestone_done(_mid, checked))
+
+                    self.list_layout.addWidget(card)
 
         if count == 0:
             empty = QLabel("No milestones due today!")
@@ -156,4 +132,13 @@ class TodayPage(QWidget):
         # ---- assemble ----
         root.addWidget(title_row)
         root.addLayout(detail)
+    
+    def _today_str(self) -> str:
+        return QDate.currentDate().toString("yyyy-MM-dd")
+    
+    def _on_milestone_done(self, milestone_id: int, is_done: bool):
+        self.today_repo.set_done(self._today_str(), milestone_id, is_done)   # 可留可不留（看你要不要歷史）
+        self.repo.set_milestone_done(milestone_id, is_done)                  # ✅ TasksPage 會看到
+
+
     

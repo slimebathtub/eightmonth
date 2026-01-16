@@ -54,7 +54,9 @@ class MainWindow(QMainWindow):
     def on_page_changed(self, key: str):
         if key == "today":
             self.pages["today"].reload_today()
-            
+        if key == "tasks":
+            self.pages["tasks"].reload_tasks()
+
         self.stack.setCurrentWidget(self.pages[key])
         return
         

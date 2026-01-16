@@ -102,6 +102,16 @@ class TaskRepository:
         conn.close()
 
     #---------milstone action-----------
+    def set_milestone_done(self, milestone_id: int, done: bool):
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE milestones SET done = ? WHERE id = ?;",
+            (1 if done else 0, milestone_id)
+        )
+        conn.commit()
+        conn.close()
+
     def add_milestone(self, task_id: str, milestone: Milestone):
         conn = get_conn()
         cur = conn.execute(
