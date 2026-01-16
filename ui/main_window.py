@@ -35,7 +35,7 @@ class MainWindow(QMainWindow):
         self.stack.setCurrentWidget(self.pages["today"])
         
         # received signal from sidebar
-        self.sidebar.page_changed.connect(self.switch_page)
+        self.sidebar.page_changed.connect(self.on_page_changed)
 
         side_content_layout.addWidget(self.sidebar)
         side_content_layout.addWidget(self.stack)
@@ -50,6 +50,13 @@ class MainWindow(QMainWindow):
         page = self.pages.get(page_name)
         if page:
             self.stack.setCurrentWidget(page)
+        
+    def on_page_changed(self, key: str):
+        if key == "today":
+            self.pages["today"].reload_today()
+            
+        self.stack.setCurrentWidget(self.pages[key])
+        return
         
         
 

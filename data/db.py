@@ -41,6 +41,31 @@ def init_db():
     );
     """)
 
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS relax_item (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL
+    );
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS today_item (
+        date TEXT NOT NULL,
+        milestone_id INTEGER NOT NULL,
+        is_done INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (date, milestone_id)
+    );
+    """)
+
+    cur.execute("""CREATE TABLE IF NOT EXISTS today_relax (
+        date TEXT NOT NULL,
+        relax_id INTEGER NOT NULL,
+        is_done INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (date, relax_id),
+        FOREIGN KEY (relax_id) REFERENCES relax_item(id) ON DELETE CASCADE
+    );
+    """)
+
     conn.commit()
     conn.close()
 

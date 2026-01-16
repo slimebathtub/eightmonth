@@ -32,4 +32,6 @@ class SideBar(QWidget):
         layout.addWidget(QPushButton("Setting"))
 
         self.setLayout(layout)
+    
+
 
