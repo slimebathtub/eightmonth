@@ -59,8 +59,13 @@ class MainWindow(QMainWindow):
 
         self.stack.setCurrentWidget(self.pages[key])
         return
-        
-        
+    
+    def _open_task_from_future(self, task_id: str, milestone_id: int):
+        # 1) switch page
+        self.go_page("tasks")  # or stack.setCurrentWidget(self.tasks_page)
+        # 2) select & highlight
+        self.tasks_page.select_task(task_id, milestone_id)
+            
 
 
 

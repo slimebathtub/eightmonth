@@ -18,6 +18,7 @@ import time
 class TasksPage(QWidget):
     def __init__(self):
         super().__init__()
+        self._highlight_milestone_id: int | None = None
         self._sort_mode = "urgency"
         self.repo = TaskRepository()
         self._task_cards: dict[str, TaskCard] = {}
@@ -110,6 +111,23 @@ class TasksPage(QWidget):
 
         self.setStyleSheet("background-color: rgb(100,200, 100)")
 
+    def select_task(self, task_id: str, milestone_id: int | None = None):
+        """
+        External navigation entry:
+        - Select a task card
+        - Show detail
+        - Optionally highlight a milestone row
+        """
+        self._selected_task_id = task_id
+        self._highlight_milestone_id = milestone_id
+
+        self.reload_tasks()
+
+        latest = self.repo.get_task(task_id)
+        if latest:
+            self._show_detail(latest)
+
+    
     def _select_and_focus_task(self, task_id: str, scroll_into_view: bool = True):
         self._selected_task_id = task_id
 
@@ -223,6 +241,10 @@ class TasksPage(QWidget):
 
         for m in task.milestones:
             row = QWidget()
+            if self._highlight_milestone_id is not None and int(getattr(m, "id", -1)) == int(self._highlight_milestone_id):
+                row.setStyleSheet("border: 2px solid rgba(255,255,255,0.9); border-radius: 8px; padding: 4px;")
+            else:
+                row.setStyleSheet("")
             row_layout = QHBoxLayout(row)
             row_layout.setContentsMargins(0, 0, 0, 0)
             row_layout.setSpacing(8)
@@ -270,7 +292,7 @@ class TasksPage(QWidget):
             row_layout.addWidget(due_label)
 
             self.milestone_list_layout.addWidget(row)
-
+        self._highlight_milestone_id = None
 
 
 
