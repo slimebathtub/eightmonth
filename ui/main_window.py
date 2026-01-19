@@ -4,6 +4,10 @@ from ui.pages.future_page import FuturePage
 from ui.pages.notes_page import NotesPage
 from ui.pages.tasks_page import TasksPage
 from ui.pages.today_page import TodayPage
+from PySide6.QtWidgets import QMessageBox
+
+from PySide6.QtWidgets import QDialog
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -47,6 +51,7 @@ class MainWindow(QMainWindow):
         self.pages['future'].open_task_request.connect(self._open_task_from_future)
 
         self.setCentralWidget(central)
+    
 
     def open_task_request(self, task_id: str, milestone_id: int):
         self.sidebar.set_active("tasks")          # 如果你有高亮
