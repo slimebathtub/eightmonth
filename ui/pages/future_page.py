@@ -1,4 +1,5 @@
 from datetime import date
+from turtle import title
 from PySide6.QtWidgets import (
     QStackedWidget, QHBoxLayout, QWidget,QLabel,
     QVBoxLayout, QPushButton)
@@ -10,16 +11,18 @@ from ui.pages.future_month_view import FutureMonthView
 from ui.pages.future_week_view import FutureWeekView
 
 class FutureItem:
-    date_str: str          # "YYYY-MM-DD"
-    task_id: str
-    task_title: str
-    milestone_id: int
-    milestone_title: str
+    def __init__(self, date_str: str, task_id: str, milestone_id: int, task_title: str, milestone_title: str):
+        self.date_str = date_str
+        self.task_id = task_id
+        self.milestone_id = milestone_id
+        self.task_title = task_title
+        self.milestone_title = milestone_title
+
 
 
 class FuturePage(QWidget):
 
-    open_task_request = Signal(int)  # task_id
+    open_task_request = Signal(str, int)  # task_id
 
     def __init__(self):
         super().__init__()
@@ -29,6 +32,7 @@ class FuturePage(QWidget):
 
         self.ui()
         self.now_status = "week"
+        self.refresh()
 
     
     def ui(self):
@@ -93,8 +97,8 @@ class FuturePage(QWidget):
         print("[FuturePage] index days =", len(self._index))
         idx: Dict[str, List[FutureItem]] = {}
 
-        tasks = self.repo.list_tasks_with_milestones()
-        for t in tasks:
+        self.tasks = self.repo.list_tasks_with_milestones()
+        for t in self.tasks:
             task_id = getattr(t, "id", None)
             task_title = getattr(t, "title", "")
             if not task_id:

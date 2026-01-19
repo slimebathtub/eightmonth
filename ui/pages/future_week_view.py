@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 from typing import Dict, List
+from shiboken6 import isValid
+
 
 from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtWidgets import (
@@ -17,6 +19,11 @@ class FutureWeekView(QWidget):
 
     def __init__(self):
         super().__init__()
+
+        self._scroll_timer = QTimer(self)
+        self._scroll_timer.setSingleShot(True)
+        self._scroll_timer.timeout.connect(lambda: self.focus_today(center=True))
+        
         self._index: Dict[str, List[object]] = {}
         self._week_start: date = date.today()
         self._day_cards = []
@@ -78,6 +85,8 @@ class FutureWeekView(QWidget):
 
     # ---------- internal ----------
     def _rebuild_cards(self):
+        if self._scroll_timer.isActive(): 
+            self._scroll_timer.stop()
         # clear cards
         for i in reversed(range(self.hbox.count())):
             it = self.hbox.takeAt(i)
@@ -111,7 +120,7 @@ class FutureWeekView(QWidget):
     def showEvent(self, event):
         super().showEvent(event)
         # 等 UI 真正 layout 完再捲
-        QTimer.singleShot(0, self._scroll_to_today_if_visible)
+        self._scroll_timer.start(0)
     
     def set_week_start(self, any_day: date):
         """
@@ -133,6 +142,8 @@ class FutureWeekView(QWidget):
             return
 
         target = None
+        if not isValid(target):
+            return
         for d, card in self._day_cards:
             if d == today:
                 target = card
@@ -141,6 +152,9 @@ class FutureWeekView(QWidget):
             return
 
         def _do_scroll():
+            from shiboken6 import isValid
+            if not isValid(target): 
+                return
             bar = self.scroll.horizontalScrollBar()
 
             # 如果此時 scrollbar 還沒更新（max=0 或 pos=0），晚一點再試一次

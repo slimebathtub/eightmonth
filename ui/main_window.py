@@ -44,7 +44,16 @@ class MainWindow(QMainWindow):
         side_content_layout.setStretch(0, 1)
         side_content_layout.setStretch(1, 4)
 
+        self.pages['future'].open_task_request.connect(self._open_task_from_future)
+
         self.setCentralWidget(central)
+
+    def open_task_request(self, task_id: str, milestone_id: int):
+        self.sidebar.set_active("tasks")          # 如果你有高亮
+        self.stack.setCurrentWidget(self.pages["tasks"])
+
+        # 2) 叫 TasksPage 顯示那個 task
+        self.pages["tasks"].open_task(task_id, milestone_id)
 
     def switch_page(self, page_name: str):
         page = self.pages.get(page_name)
@@ -62,9 +71,9 @@ class MainWindow(QMainWindow):
     
     def _open_task_from_future(self, task_id: str, milestone_id: int):
         # 1) switch page
-        self.go_page("tasks")  # or stack.setCurrentWidget(self.tasks_page)
+        self.switch_page("tasks")  # or stack.setCurrentWidget(self.tasks_page)
         # 2) select & highlight
-        self.tasks_page.select_task(task_id, milestone_id)
+        self.pages["tasks"].select_task(task_id, milestone_id)
             
 
 

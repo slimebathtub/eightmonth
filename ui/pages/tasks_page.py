@@ -400,5 +400,14 @@ class TasksPage(QWidget):
             if mid not in new_ids:
                 self.repo.delete_milestone(int(mid))
 
+    def open_task(self, task_id: str, milestone_id: int | None = None):
+        self._selected_task_id = task_id
+        self.reload_tasks()
+
+        latest = self.repo.get_task(task_id)
+        if latest:
+            self._show_detail(latest)
+
+        # milestone_id 你可以先不管（之後要做定位/高亮再加）
 
 
