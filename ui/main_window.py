@@ -7,10 +7,22 @@ from ui.pages.today_page import TodayPage
 from PySide6.QtWidgets import QMessageBox
 
 from PySide6.QtWidgets import QDialog
+from PySide6.QtCore import QObject, QEvent
+from PySide6.QtWidgets import QApplication, QWidget
+class _WindowSpy(QObject):
+    def eventFilter(self, obj, event):
+        if event.type() in (QEvent.Show, QEvent.Hide):
+            if isinstance(obj, QWidget) and obj.isWindow():
+                txt = getattr(obj, "text", lambda: "")()
+                parent = obj.parent()
+                pname = parent.__class__.__name__ if parent else None
+                print(f"[WIN] {event.type()} {obj.__class__.__name__} title='{obj.windowTitle()}' text='{txt}' parent={pname} obj={hex(id(obj))}")
+        return False
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+
 
         self.setWindowTitle("Test")
         self.resize(900,600)
@@ -51,6 +63,9 @@ class MainWindow(QMainWindow):
         self.pages['future'].open_task_request.connect(self._open_task_from_future)
 
         self.setCentralWidget(central)
+        
+        self._win_spy = _WindowSpy()
+        QApplication.instance().installEventFilter(self._win_spy)
     
 
     def open_task_request(self, task_id: str, milestone_id: int):

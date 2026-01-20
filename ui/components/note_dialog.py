@@ -1,3 +1,4 @@
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
     QLineEdit, QTextEdit, QPushButton, QMessageBox
@@ -7,14 +8,14 @@ DELETE_CODE = 99
 
 
 class NoteDialog(QDialog):
-    """
-    - New note: note_id=None  -> shows Save/Cancel
-    - Edit note: note_id=int  -> shows Save/Cancel/Delete
-    """
+    saved = Signal(str, str)   # title, content
+    deleted = Signal(int)      # note_id
+
     def __init__(self, parent=None, title: str = "", content: str = "", note_id: int | None = None):
         super().__init__(parent)
         self.note_id = note_id
-        self._result: tuple[str, str] | None = None
+
+        print(f"[NoteDialog] created id={hex(id(self))} note_id={self.note_id}")
 
         self.setModal(True)
         self.setMinimumWidth(520)
@@ -42,24 +43,22 @@ class NoteDialog(QDialog):
 
         form.addRow("Title", self.ed_title)
         form.addRow("Content", self.ed_content)
-
         root.addLayout(form)
 
-        # buttons
         btn_row = QHBoxLayout()
         btn_row.setSpacing(10)
 
-        self.btn_delete = QPushButton("Delete")
+        self.btn_delete = QPushButton("Delete", self)
         self.btn_delete.setVisible(self.note_id is not None)
         self.btn_delete.clicked.connect(self._on_delete)
 
         btn_row.addWidget(self.btn_delete)
         btn_row.addStretch(1)
 
-        self.btn_cancel = QPushButton("Cancel")
+        self.btn_cancel = QPushButton("Cancel", self)
         self.btn_cancel.clicked.connect(self.reject)
 
-        self.btn_save = QPushButton("Save")
+        self.btn_save = QPushButton("Save", self)
         self.btn_save.setDefault(True)
         self.btn_save.clicked.connect(self._on_save)
 
@@ -68,7 +67,6 @@ class NoteDialog(QDialog):
 
         root.addLayout(btn_row)
 
-        # optional: style to match your dark glass UI
         self.setStyleSheet("""
             QDialog {
                 background: #111;
@@ -94,25 +92,25 @@ class NoteDialog(QDialog):
                 background: rgba(255,255,255,0.12);
                 border: 1px solid rgba(255,255,255,0.18);
             }
-        """)
+            """)
+
 
     def _on_save(self):
         title = (self.ed_title.text() or "").strip()
         content = (self.ed_content.toPlainText() or "").strip()
 
-        # 你想允許空 content 也行；但通常 note 內容至少要有字
         if not content:
             QMessageBox.warning(self, "Validation", "Content cannot be empty.")
             return
 
-        # title 可以空，UI 會顯示 (No title)
-        self._result = (title, content)
+        # ✅ 用 signal 把資料丟出去
+        self.saved.emit(title, content)
         self.accept()
 
     def _on_delete(self):
+        if self.note_id is None:
+            return
         if QMessageBox.question(self, "Delete", "Delete this note?") == QMessageBox.Yes:
+            # ✅ 用 signal 通知刪除
+            self.deleted.emit(int(self.note_id))
             self.done(DELETE_CODE)
-
-    def result_note(self) -> tuple[str, str] | None:
-        """Return (title, content) after Accept."""
-        return self._result

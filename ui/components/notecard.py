@@ -38,6 +38,12 @@ class NoteCard(QFrame):
         self.meta_label = QLabel()
         self.meta_label.setObjectName("Meta")
 
+        # ✅ 讓文字不吃 mouse event，所有點擊都交給 NoteCard 自己處理
+        self.title_label.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.preview_label.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.meta_label.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+
+
         root.addWidget(self.title_label)
         root.addWidget(self.preview_label, 1)
         root.addWidget(self.meta_label)
