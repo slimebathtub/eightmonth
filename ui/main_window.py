@@ -9,6 +9,10 @@ from PySide6.QtWidgets import QMessageBox
 from PySide6.QtWidgets import QDialog
 from PySide6.QtCore import QObject, QEvent
 from PySide6.QtWidgets import QApplication, QWidget
+
+from PySide6.QtGui import QFontDatabase
+
+
 class _WindowSpy(QObject):
     def eventFilter(self, obj, event):
         if event.type() in (QEvent.Show, QEvent.Hide):
@@ -22,6 +26,7 @@ class _WindowSpy(QObject):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        print("[MainWindow] init")
 
 
         self.setWindowTitle("Test")
@@ -66,8 +71,33 @@ class MainWindow(QMainWindow):
         
         self._win_spy = _WindowSpy()
         QApplication.instance().installEventFilter(self._win_spy)
+        
+        self._load_styles()
+        self._load_fonts()
     
 
+    def _load_styles(self):
+
+        def load_qss(*paths):
+            css = ""
+            for p in paths:
+                with open(p, "r", encoding="utf-8") as f:
+                    css += f.read() + "\n"
+            return css
+
+        self.setStyleSheet(load_qss(
+            "ui/style/main.qss",
+            "ui/style/sidebar.qss"
+        ))
+
+    def _load_fonts(self):
+        print("[fonts] loading...")
+        font_id = QFontDatabase.addApplicationFont("assets/font/ProtestRevolution-Regular.ttf")
+        print("[fonts] font_id =", font_id)
+        print("[fonts] families =", QFontDatabase.applicationFontFamilies(font_id))
+
+    
+    
     def open_task_request(self, task_id: str, milestone_id: int):
         self.sidebar.set_active("tasks")          # 如果你有高亮
         self.stack.setCurrentWidget(self.pages["tasks"])

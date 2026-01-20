@@ -1,0 +1,29 @@
+#SideBar {
+    border-style: solid;
+    border-width: 120px 18px 18px 18px;
+    background-color: magenta;
+    border-image: url(assets/sidebar/bg-small.png)
+                  120 18 18 18 stretch stretch;
+    
+}
+
+#SideBar QPushButton{
+    font-family: "Protest Revolution";
+    font-size: 14pt;
+    border-image: none;
+    margin: 10px 20px 10px 20px;
+    min-height: 40px;
+    border-image: url(assets/sidebar/btn-normal.png)
+                  12 0 12 0 stretch stretch;
+}
+
+#SideBar QPushButton:hover {
+    border-image: url(assets/sidebar/btn-hover.png)
+                  12 0 12 0 stretch stretch;
+}
+
+#SideBar QPushButton:checked {
+    color: black;
+    border-image: url(assets/sidebar/btn-active.png)
+                  12 0 12 0 stretch stretch;
+}
