@@ -40,7 +40,7 @@ class MainWindow(QMainWindow):
 
         # center content area: stack ( to switch between pages )
         self.stack = QStackedWidget()
-        self.stack.setStyleSheet("background-color: rgb(0,0,0);")
+        #self.stack.setStyleSheet("background-color: rgb(0,0,0);")
 
         self.pages = {
             "notes": NotesPage(),
@@ -64,6 +64,8 @@ class MainWindow(QMainWindow):
         central.setLayout(side_content_layout)
         side_content_layout.setStretch(0, 1)
         side_content_layout.setStretch(1, 4)
+        side_content_layout.setContentsMargins(0,0,0,0)
+        side_content_layout.setSpacing(0)
 
         self.pages['future'].open_task_request.connect(self._open_task_from_future)
 
@@ -87,7 +89,9 @@ class MainWindow(QMainWindow):
 
         self.setStyleSheet(load_qss(
             "ui/style/main.qss",
-            "ui/style/sidebar.qss"
+            "ui/style/sidebar.qss",
+            "ui/style/tasks.qss",
+            "ui/style/today.qss",
         ))
 
     def _load_fonts(self):

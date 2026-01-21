@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QLabel, QWidget,
-    QScrollArea, QPushButton, QMessageBox, QInputDialog
+    QScrollArea, QPushButton, QMessageBox, QInputDialog,
+    QSizePolicy
 )
 from PySide6.QtCore import Qt, Signal, QDate
 
@@ -12,6 +13,8 @@ class RelaxCard(QFrame):
 
     def __init__(self, relax_id: int, title: str, checked: bool):
         super().__init__()
+        with open("ui/style/today.qss", "r", encoding="utf-8") as f:
+            self.setStyleSheet(f.read())
         self.relax_id = relax_id
         self.title = title
         self._checked = checked
@@ -21,37 +24,21 @@ class RelaxCard(QFrame):
 
     def ui(self):
         root = QHBoxLayout(self)
-        root.setContentsMargins(12, 10, 12, 10)
-        root.setSpacing(10)
+        root.setContentsMargins(0, 12, 0, 12)
 
         self.title_label = QLabel(self.title)
-        self.title_label.setStyleSheet("font-size: 14px;")
-
-        root.addWidget(self.title_label)
-        root.addStretch(1)
-
-        self.setStyleSheet("""
-            QFrame#RelaxCard {
-                background: rgba(255,255,255,0.04);
-                border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 12px;
-            }
-            QFrame#RelaxCard[selected="true"] {
-                background: rgba(255,255,255,0.08);
-                border: 1px solid rgba(255,255,255,0.22);
-            }
-        """)
+        self.title_label.setStyleSheet("font-size: 16px;")
+        self.title_label.setAlignment(Qt.AlignCenter)
+        self.setMinimumSize(180, 50)
+        self.setMaximumSize(240, 58)
+        self.setStyleSheet("padding:0px;") 
+        
+        root.addWidget(self.title_label,1)
 
     def set_checked(self, checked: bool):
         self._checked = checked
         self.setProperty("selected", "true" if checked else "false")
         self.style().polish(self)
-
-        # 文字也加一點差異
-        if checked:
-            self.title_label.setStyleSheet("font-size: 14px; font-weight: 600;")
-        else:
-            self.title_label.setStyleSheet("font-size: 14px; font-weight: 400;")
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -72,7 +59,8 @@ class RelaxListWidget(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(10)
 
-        self.btn_add_relax = QPushButton("Add Relax Item")
+        self.btn_add_relax = QPushButton("")
+        self.btn_add_relax.setObjectName("AddRelax")
         self.btn_add_relax.clicked.connect(self._on_add_relax)
         root.addWidget(self.btn_add_relax)
 
@@ -84,9 +72,12 @@ class RelaxListWidget(QWidget):
         relax_scroll = QScrollArea()
         relax_scroll.setWidgetResizable(True)
         relax_scroll.setFrameShape(QScrollArea.NoFrame)
+        relax_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         relax_scroll.setWidget(self.relax_list_container)
+        relax_scroll.setStyleSheet("background: transparent;")
 
         root.addWidget(relax_scroll)
+        
 
     def _today_str(self) -> str:
         return QDate.currentDate().toString("yyyy-MM-dd")

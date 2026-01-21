@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import (
     QScrollArea, QWidget, QHBoxLayout, QLabel, QVBoxLayout,
-    QPushButton, QCheckBox, QInputDialog, QDialog, QToolButton
+    QPushButton, QCheckBox, QInputDialog, QDialog, QToolButton,
+    QSizePolicy, QFrame, QProgressBar
 )
 from PySide6.QtCore import Qt
 from ui.components.taskcard import TaskCard
@@ -32,38 +33,58 @@ class TasksPage(QWidget):
 
     def ui(self):
         # root layout
-        self.list_detail_layout = QHBoxLayout(self)
-        self.list_detail_layout.setContentsMargins(16, 16, 16, 16)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+
+        bg = QWidget()
+        bg.setObjectName("TasksPageBg")
+        bg.setContentsMargins(16, 16, 16, 16)
+        root.addWidget(bg)
+
+        self.setObjectName("TasksPage")
+        self.list_detail_layout = QHBoxLayout(bg)
+        self.list_detail_layout.setContentsMargins(0, 0, 0, 0)
         self.list_detail_layout.setSpacing(14)
 
         # ---- Left: List Side ----
         list_side = QWidget()
         self.list_side_layout = QVBoxLayout(list_side)
-        self.list_side_layout.setContentsMargins(12, 12, 12, 12)
+        self.list_side_layout.setContentsMargins(0, 0, 0, 0)
         self.list_side_layout.setSpacing(10)
 
         # Header Row
-        header_row = QHBoxLayout()
-        title = QLabel("Tasks")
-        title.setStyleSheet("font-size: 22px; font-weight: 700;")
-        header_row.addWidget(title)
+        header_row = QVBoxLayout()
+        
+        title_bg = QWidget()
+        title_bg.setObjectName("PageTitle")
+        title_bg.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+        header_row.addWidget(title_bg)
+
 
         # ---- sort switch (新增) ----
+        action_layout = QHBoxLayout()
         self.sort_btn = QToolButton()
+        self.sort_btn.setObjectName("SortButton")
         self.sort_btn.setCheckable(True)
         self.sort_btn.setChecked(False)  # False=urgency
-        self._update_sort_btn_text()
+        #self._update_sort_btn_text()
+        self.sort_btn.setFixedWidth(100)
+        self.sort_btn.setFixedHeight(40)
         self.sort_btn.clicked.connect(self._on_sort_btn_clicked)
+        action_layout.addStretch(1)
+        action_layout.addWidget(self.sort_btn)
 
-        header_row.addWidget(self.sort_btn)
 
-
-        btn_add = QPushButton("+ Task")
-        btn_add.setFixedHeight(32)
+        btn_add = QPushButton()
+        btn_add.setObjectName("AddBtn")
+        btn_add.setFixedWidth(100)
+        btn_add.setFixedHeight(40)
         btn_add.clicked.connect(self._on_add_task)
-        header_row.addWidget(btn_add)
+        action_layout.addWidget(btn_add)
 
         self.list_side_layout.addLayout(header_row)
+        self.list_side_layout.addLayout(action_layout)
 
         # ------ Cards container (rendered by reload_tasks)-----
         self.cards_container = QWidget()
@@ -73,6 +94,9 @@ class TasksPage(QWidget):
 
         # ------- Scroll Area for cards -----
         self.scroll = QScrollArea()
+        self.scroll.setFrameShape(QFrame.NoFrame)
+        self.scroll.setStyleSheet("background: transparent;")
+        self.scroll.viewport().setStyleSheet("background: transparent;")
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QScrollArea.NoFrame)
         self.scroll.setWidget(self.cards_container)
@@ -82,34 +106,83 @@ class TasksPage(QWidget):
 
         # ---- Right: Task detail ----
         detail = QWidget()
-        detail.setStyleSheet("background-color: rgb(100,100,200)")
-        detail_layout = QVBoxLayout(detail)
-        detail_layout.setContentsMargins(12, 12, 12, 12)
-        detail_layout.setSpacing(8)
+        detail.setObjectName("DetailBox")
+        detail_outer = QVBoxLayout(detail)
+        detail_outer.setContentsMargins(0, 0, 0, 0)
+        detail_outer.setSpacing(0)
+
+        # --- the actual panel card ---
+        self.detail_panel = QFrame()
+        self.detail_panel.setObjectName("DetailPanel")
+        panel_layout = QVBoxLayout(self.detail_panel)
+        panel_layout.setContentsMargins(16, 16, 16, 16)
+        panel_layout.setSpacing(10)
 
         self.detail_title = QLabel("Select a task")
-        self.detail_title.setStyleSheet("font-size: 20px; font-weight: 700;")
+        self.detail_title.setObjectName("DetailTitle")
+
+        self.meta_container = QWidget()
+        meta_layout = QVBoxLayout(self.meta_container)
+        meta_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setObjectName("Progress")
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setTextVisible(True)
+        self.progress_bar.setAlignment(Qt.AlignCenter)
+        self.progress_bar.setFixedHeight(30) 
+
         self.date_info = QLabel("")
+        self.date_info.setObjectName("DetailDate")
+
         self.detail_meta = QLabel("")
+        self.detail_meta.setObjectName("DetailMeta")
 
-        self.milestone_list = QWidget()
-        self.milestone_list_layout = QVBoxLayout(self.milestone_list)
+        meta_layout.addWidget(self.progress_bar)
+        meta_layout.addWidget(self.date_info)
+        meta_layout.addWidget(self.detail_meta)
+        self.meta_container.hide()
+
+        panel_layout.addWidget(self.detail_title)
+        panel_layout.addWidget(self.date_info)
+        panel_layout.addWidget(self.meta_container)
+        panel_layout.addWidget(self.detail_meta)
+
+
+        # --- milestones should scroll INSIDE the panel ---
+        self.milestone_container = QWidget()
+        self.milestone_container.setObjectName("MilestoneContainer")
+
+        self.milestone_list_layout = QVBoxLayout(self.milestone_container)
         self.milestone_list_layout.setContentsMargins(0, 0, 0, 0)
-        self.milestone_list_layout.setSpacing(6)
 
-        # add to root
-        detail_layout.addWidget(self.detail_title)
-        detail_layout.addWidget(self.date_info)
-        detail_layout.addWidget(self.detail_meta)
-        detail_layout.addWidget(self.milestone_list)
+        # 每一行的間距（你要的固定 spacing）
+        self.milestone_list_layout.setSpacing(14)
+
+        # 讓 items 靠下：先塞一個 stretch 在最上面
+        self._milestone_top_spacer = self.milestone_list_layout.addStretch(1)
+
+        self.milestone_scroll = QScrollArea()
+        self.milestone_scroll.setObjectName("MilestoneScroll")
+        self.milestone_scroll.setWidgetResizable(True)
+        self.milestone_scroll.setFrameShape(QFrame.NoFrame)
+        self.milestone_scroll.setWidget(self.milestone_container)
+
+        panel_layout.addWidget(self.milestone_scroll, 1)  # ✅ fill remaining height
+
+        detail_outer.addWidget(self.detail_panel, 1)
+
+        self.list_detail_layout.addWidget(list_side, 6)
+        self.list_detail_layout.addWidget(detail, 4)
 
         self.list_detail_layout.addWidget(list_side)
         self.list_detail_layout.addWidget(detail)
 
-        self.list_detail_layout.setStretch(0, 6)
-        self.list_detail_layout.setStretch(1, 4)
+        self.list_detail_layout.setStretch(0, 5)
+        self.list_detail_layout.setStretch(1, 5)
 
-        self.setStyleSheet("background-color: rgb(100,200, 100)")
+        #self.setStyleSheet("background-color: rgb(100,200, 100)")
 
     def select_task(self, task_id: str, milestone_id: int | None = None):
         """
@@ -145,12 +218,12 @@ class TasksPage(QWidget):
             card = self._task_cards[task_id]
             QTimer.singleShot(0, lambda: self.scroll.ensureWidgetVisible(card))
     
-    def _update_sort_btn_text(self):
-        self.sort_btn.setText("A→Z" if self.sort_btn.isChecked() else "Urgency")
+    #def _update_sort_btn_text(self):
+    #    self.sort_btn.setText("A→Z" if self.sort_btn.isChecked() else "Urgency")
 
     def _on_sort_btn_clicked(self):
         self._sort_mode = "alpha" if self.sort_btn.isChecked() else "urgency"
-        self._update_sort_btn_text()
+    #    self._update_sort_btn_text()
         self.reload_tasks(keep_scroll=True, keep_selection=True)
 
 
@@ -233,18 +306,15 @@ class TasksPage(QWidget):
             self.date_info.setText(f"Start: {start_date}   -   End: {due_date}")
         else:
             self.date_info.setText("")
-
-        self.detail_meta.setText(f"Progress: {task.progress}%   |   Priority: {task.priority}")
+        
+        self.meta_container.show()
+        self.progress_bar.setValue(task.progress)
 
         # milestones list
         self._clear_milestones_ui()
 
         for m in task.milestones:
             row = QWidget()
-            if self._highlight_milestone_id is not None and int(getattr(m, "id", -1)) == int(self._highlight_milestone_id):
-                row.setStyleSheet("border: 2px solid rgba(255,255,255,0.9); border-radius: 8px; padding: 4px;")
-            else:
-                row.setStyleSheet("")
             row_layout = QHBoxLayout(row)
             row_layout.setContentsMargins(0, 0, 0, 0)
             row_layout.setSpacing(8)
@@ -263,7 +333,7 @@ class TasksPage(QWidget):
             desc = (m.description or "").strip()
             desc_label = QLabel(desc)
             desc_label.setWordWrap(True)
-            desc_label.setStyleSheet("color: rgba(255,255,255,0.65); font-size: 12px;")
+            #desc_label.setStyleSheet("color: rgba(255,255,255,0.65); font-size: 12px;")
             desc_label.setVisible(bool(desc))   # ✅ 沒描述就不顯示
 
             left_layout.addWidget(cb)
@@ -273,13 +343,14 @@ class TasksPage(QWidget):
             m_due = getattr(m, "due_date", None)
             due_text = f"Due: {m_due}" if m_due else "Due: —"
             due_label = QLabel(due_text)
-            due_label.setStyleSheet("color: rgba(255,255,255,0.65); font-size: 12px;")
+            #due_label.setStyleSheet("color: rgba(255,255,255,0.65); font-size: 12px;")
 
             def on_toggle(checked, mid=m.id, tid=task.id):
                 self.repo.set_milestone_done(mid, checked)
                 latest = self.repo.get_task(tid)
                 if latest:
-                    self.detail_meta.setText(f"Progress: {latest.progress}%   |   Priority: {latest.priority}")
+                    self.progress_bar.setValue(latest.progress)
+                    self.detail_meta.setText(f" Priority: {latest.priority}")
                     card = self._task_cards.get(tid)
                     if card:
                         card.task = latest
@@ -293,7 +364,7 @@ class TasksPage(QWidget):
 
             self.milestone_list_layout.addWidget(row)
         self._highlight_milestone_id = None
-
+        self.milestone_list_layout.addStretch(1)
 
 
     def _on_add_task(self):
@@ -349,6 +420,7 @@ class TasksPage(QWidget):
                 self.date_info.setText("")
                 self.detail_meta.setText("")
                 self._clear_milestones_ui()
+                self.meta_container.hide()
                 return
 
             if rc != QDialog.Accepted:

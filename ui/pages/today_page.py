@@ -1,7 +1,8 @@
 from PySide6.QtWidgets import (
-    QWidget, QLabel, QHBoxLayout, QVBoxLayout, QScrollArea, QFrame
+    QWidget, QLabel, QHBoxLayout, QVBoxLayout, QScrollArea, QFrame,
+    QStackedLayout
 )
-from PySide6.QtCore import QDate
+from PySide6.QtCore import QDate, Qt
 from data.task_repo import TaskRepository
 from data.today_repo import TodayRepository
 from ui.components.relax import RelaxListWidget
@@ -23,6 +24,7 @@ class TodayPage(QWidget):
                 w.deleteLater()
 
     def _format_due_text(self, m) -> str:
+        pass
         due_date = getattr(m, "due_date", None)
         if not due_date:
             return "No due date"
@@ -40,7 +42,7 @@ class TodayPage(QWidget):
         self._clear_list()
 
         tasks = self.repo.list_tasks_with_milestones()
-        count = 0
+        count = len(tasks)
         date_str = self._today_str()
 
         for t in tasks:
@@ -58,7 +60,7 @@ class TodayPage(QWidget):
 
         if count == 0:
             empty = QLabel("No milestones due today!")
-            empty.setStyleSheet("font-size: 14px; color: rgba(255,255,255,0.5);")
+            empty.setStyleSheet("font-size: 24px; color: rgba(255,255,255,0.5);")
             self.list_layout.addWidget(empty)
 
         self.list_layout.addStretch(1)
@@ -67,71 +69,98 @@ class TodayPage(QWidget):
             self.relax_widget.reload_relax_items()
 
     def ui(self):
-        root = QVBoxLayout(self)
-        root.setContentsMargins(16, 16, 16, 16)
-        root.setSpacing(14)
+        self.setObjectName("TodayPage")
 
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        #root.setContentsMargins(16, 16, 16, 16)
+        #root.setSpacing(14)
+
+        # ==================================================
+        # Background widget（就是背景，不是 QLabel）
+        # ==================================================
+        bg = QWidget()
+        bg.setObjectName("TodayPageBg")
+        root.addWidget(bg, 1)
+
+        # bg 裡面才放真正內容
+        bg_layout = QVBoxLayout(bg)
+        bg_layout.setContentsMargins(10, 10, 10, 10)
+        bg_layout.setSpacing(0)
+
+        # ==================================================
         # ---- title row ----
+        # ==================================================
         title_row = QWidget()
         title_layout = QHBoxLayout(title_row)
         title_layout.setContentsMargins(0, 0, 0, 0)
         title_layout.setSpacing(10)
 
-        title = QLabel("Today")
-        date = QLabel(QDate.currentDate().toString("yyyy-MM-dd"))
-        self.task_amount = QLabel("Task amount: 0")
+        # date = QLabel(QDate.currentDate().toString("yyyy-MM-dd"))
+        #self.task_amount = QLabel("Task amount: 0")
 
-        title_layout.addWidget(title)
-        title_layout.addWidget(date)
+        #title_layout.addWidget(date)
         title_layout.addStretch(1)
-        title_layout.addWidget(self.task_amount)
+        #title_layout.addWidget(self.task_amount)
 
-        # ---- detail (left/right) ----
+        bg_layout.addWidget(title_row)
+
+        # ==================================================
+        # ---- detail (left / right) ----
+        # ==================================================
         detail = QHBoxLayout()
         detail.setContentsMargins(0, 0, 0, 0)
         detail.setSpacing(10)
 
         # ---- left ----
         left = QWidget()
+        left.setObjectName("LeftWidget")
         left_layout = QVBoxLayout(left)
         left_layout.setContentsMargins(12, 12, 12, 12)
         left_layout.setSpacing(10)
 
-        left_title = QLabel("Tasks")
+        left_title = QLabel("Today's Tasks")
+        left_title.setObjectName("TodayTitle")
         left_layout.addWidget(left_title)
 
         self.list_container = QWidget()
+        self.list_container.setObjectName("ListWidget")
         self.list_layout = QVBoxLayout(self.list_container)
         self.list_layout.setContentsMargins(0, 0, 0, 0)
         self.list_layout.setSpacing(10)
+        self.list_layout.addStretch(1)
 
         scroll = QScrollArea()
+        scroll.setStyleSheet("background: transparent;")
+        #scroll.viewport().setStyleSheet("background: transparent;")
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         scroll.setWidget(self.list_container)
 
-        left_layout.addWidget(scroll)
+        left_layout.addWidget(scroll, 1)
 
         # ---- right ----
         right = QWidget()
+        right.setObjectName("RightWidget")
         right_layout = QVBoxLayout(right)
-
-        right_title = QLabel("Routine/Relax")
-        self.relax_widget = RelaxListWidget()
-
-        right_layout.addWidget(right_title)
-        right_layout.addWidget(self.relax_widget)
-
         right_layout.setContentsMargins(12, 12, 12, 12)
         right_layout.setSpacing(10)
-        right_layout.addStretch(1)
+
+        right_title = QLabel("Routine/Relax")
+        right_title.setObjectName("RelaxTitle")
+        self.relax_widget = RelaxListWidget()
+        self.relax_widget.setObjectName("RelaxWidget")
+
+        right_layout.addWidget(right_title)
+        right_layout.addWidget(self.relax_widget, 1)
 
         detail.addWidget(left, 7)
         detail.addWidget(right, 3)
 
-        # ---- assemble ----
-        root.addWidget(title_row)
-        root.addLayout(detail)
+        bg_layout.addLayout(detail, 1)
+
+
     
     def _today_str(self) -> str:
         return QDate.currentDate().toString("yyyy-MM-dd")

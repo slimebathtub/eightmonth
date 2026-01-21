@@ -1,0 +1,99 @@
+#TaskCard {
+    border-image: url(assets/tasks/card-bg.png)
+                  0 0 0 0  stretch stretch;
+    padding: 10px;
+    margin: 5px;
+}
+QLabel#TaskcardTitle{
+    font-size: 24px;
+    font-weight: 800;
+    color: rgba(245, 187, 149, 255);
+}
+#TaskCard:hover {
+    border-image: url(assets/tasks/card-hover.png)
+                  0 0 0 0  stretch stretch;
+}
+#TaskCard[selected="true"] {
+    border-image: url(assets/tasks/card-clicked.png)
+                  0 0 0 0  stretch stretch;
+}
+#PageTitle {
+    min-height: 70px;
+    border-image: url(assets/tasks/title-bg.png)
+                    0 0 0 0 stretch stretch;
+}
+#TasksPageBg {
+    border-image: url(assets/tasks/bg.png)
+}
+
+#ScrollArea {
+    background: transparent;
+}
+
+#DetailPanel {
+    margin: 40px 0px 40px 0px;
+    padding: 30px 20px;
+    border-image: url("assets/tasks/task-bg.png")
+                0 0 0 0 stretch stretch;
+}
+
+#DetailTitle {
+    font-size: 22px;
+    font-weight: 800;
+}
+
+#DetailDate, #DetailMeta {
+    font-size: 12px;
+    color: rgba(255,255,255,0.70);
+}
+
+/* 讓右側 milestones 滾動區透明、不破壞面板 */
+#MilestoneScroll {
+    background: transparent;
+}
+#MilestoneScroll QWidget {
+    background: transparent;
+}
+
+#AddBtn {
+    border-image: url(assets/tasks/add-button-bg.png) 0 0 0 0 stretch stretch;
+}
+
+
+/* ===== Game-style progress bar ===== */
+
+#Progress {
+    border-image: url(assets/tasks/progress-bar.png) 12 0 12 0 stretch stretch;
+    border: none;
+}
+
+#Progress::groove {
+    height: 30px;                /* 跟 setFixedHeight 對齊 */
+    width: 30px;
+    border-radius: 7px;
+    padding: 5px;                /* 讓 chunk 不貼邊，像內嵌 */
+}
+
+/* 填充（chunk）：金色能量條 */
+#Progress::chunk {
+
+    background: qlineargradient(
+        x1:0, y1:0, x2:1, y2:0,
+        stop:0   rgba(160, 110, 40, 0.95),
+        stop:0.35 rgba(220, 170, 70, 0.95),
+        stop:0.6 rgba(250, 220, 120, 0.95),
+        stop:1   rgba(140, 95, 35, 0.95)
+    );
+    margin: 6px 8px;
+
+    border: 1px solid rgba(40, 25, 10, 0.55);
+}
+
+
+#SortButton {
+    border-image: url(assets/tasks/sort-urgency.png) 0 0 0 0 stretch stretch;
+}
+
+#SortButton:checked {
+    border-image: url(assets/tasks/sort-alpha.png) 0 0 0 0 stretch stretch;
+}

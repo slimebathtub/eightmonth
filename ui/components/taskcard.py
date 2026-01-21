@@ -1,6 +1,8 @@
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QFrame, QSizePolicy, QHBoxLayout
 from PySide6.QtCore import Signal, Qt, QTimer
 from core.module.Task import Task
+from PySide6.QtGui import QColor
+from PySide6.QtWidgets import QGraphicsDropShadowEffect
 
 
 class TaskCard(QFrame):
@@ -9,6 +11,8 @@ class TaskCard(QFrame):
 
     def __init__(self, task: Task):
         super().__init__()
+        with open("ui/style/tasks.qss", "r", encoding="utf-8") as f:
+            self.setStyleSheet(f.read())
         self.task = task
         self.ui()
         self._click_timer = QTimer(self)
@@ -19,7 +23,7 @@ class TaskCard(QFrame):
         self.setObjectName("TaskCard")
         self.setCursor(Qt.PointingHandCursor)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.setMinimumHeight(72)
+        self.setMinimumHeight(120)
         
         root = QHBoxLayout(self)
         root.setContentsMargins(12, 10, 12, 10)
@@ -27,17 +31,18 @@ class TaskCard(QFrame):
 
         # title and content
         mid = QVBoxLayout()
-        mid.setSpacing(2)
+        mid.setSpacing(1)
 
         self.title_label = QLabel(self.task.title)
-        self.title_label.setObjectName("Title")
+        add_text_shadow(self.title_label)
+        self.title_label.setObjectName("TaskcardTitle")
 
         milestones = QLabel(f"{len(self.task.milestones)} milestones")
         milestones.setObjectName("Milestones")
 
-        details = QLabel(self._milestone_details())
-        details.setObjectName("MilestoneDetails")
-        details.setWordWrap(True)
+        #details = QLabel(self._milestone_details())
+        #details.setObjectName("MilestoneDetails")
+        #details.setWordWrap(True)
         
         priority = QLabel(f"Priority: {self.task.priority}")
         priority.setObjectName("Priority")
@@ -48,42 +53,9 @@ class TaskCard(QFrame):
         mid.addWidget(self.title_label)
         mid.addWidget(self.meta)
         mid.addWidget(milestones)
-        mid.addWidget(details)
+        #mid.addWidget(details)
         mid.addWidget(priority)
         root.addLayout(mid, 1)
-
-
-        self.setStyleSheet("""
-            QFrame#TaskCard {
-                background: rgba(255,255,255,0.04);
-                border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 12px;
-            }
-            QFrame#TaskCard:hover {
-                border: 1px solid rgba(255,255,255,0.18);
-                background: rgba(255,255,255,0.06);
-            }
-            QLabel#Title {
-                font-size: 16px;
-                font-weight: 600;
-            }
-            QLabel#Meta {
-                font-size: 12px;
-                color: rgba(255,255,255,0.65);
-            }
-            QLabel#MilestoneDetails {
-                font-size: 12px;
-                color: rgba(255,255,255,0.65);
-            }
-            QLabel#Arrow {
-                font-size: 22px;
-                color: rgba(255,255,255,0.35);
-            }
-            QFrame#TaskCard[selected="true"] {
-                border: 1px solid rgba(255,255,255,0.45);
-                background: rgba(255,255,255,0.10);
-            }
-        """)
 
     def _milestone_details(self) -> str:
         if not self.task.milestones:
@@ -137,3 +109,10 @@ class TaskCard(QFrame):
     def closeEvent(self, event):
         self._stop_click_timer()
         super().closeEvent(event)
+
+def add_text_shadow(label):
+    eff = QGraphicsDropShadowEffect(label)
+    eff.setBlurRadius(2)
+    eff.setOffset(2, 2)
+    eff.setColor(QColor(0, 0, 0, 160))
+    label.setGraphicsEffect(eff)

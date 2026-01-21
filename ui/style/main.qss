@@ -2,3 +2,38 @@
 QLabel {
     font-family: "Protest Revolution";
 }
+/* 整體 scrollbar 區（背景軌道） */
+QScrollBar:vertical {
+    background: rgba(0,0,0,0.18);
+    width: 12px;
+    margin: 6px 4px 6px 4px;
+    border-radius: 6px;
+}
+
+/* 把手 */
+QScrollBar::handle:vertical {
+    background: rgba(255,255,255,0.28);
+    border: 1px solid rgba(255,255,255,0.18);
+    min-height: 30px;
+    border-radius: 6px;
+}
+QScrollBar::handle:vertical:hover {
+    background: rgba(255,255,255,0.38);
+}
+QScrollBar::handle:vertical:pressed {
+    background: rgba(255,255,255,0.48);
+}
+
+/* 上下按鈕（通常直接關掉會更好看） */
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    height: 0px;
+    width: 0px;
+    background: transparent;
+}
+
+/* 點軌道空白處跳頁的區塊（可透明） */
+QScrollBar::add-page:vertical,
+QScrollBar::sub-page:vertical {
+    background: transparent;
+}
